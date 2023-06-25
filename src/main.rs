@@ -35,9 +35,9 @@ fn main() {
         //Type::new(Box::new(|x: char| x.is_romance_vowel())),
         //Type::new(Box::new(|x: char| x.is_alphabetic() && !x.is_romance_vowel())),
         //Type::new(Box::new(|x: char| !x.is_alphabetic())),
-        Type::new(true,     Box::new(|x|    "aeiou"                        .chars().any(|y| y == x || y.to_uppercase().next().unwrap() == x))),
-        Type::new(true,     Box::new(|x|    "bcdfghjklmnpqrstvwxyz"        .chars().any(|y| y == x || y.to_uppercase().next().unwrap() == x))),
-        Type::new(false,    Box::new(|x| !  "abcdefghijklmnopqrstuvwxyz"   .chars().any(|y| y == x || y.to_uppercase().next().unwrap() == x))),
+        Type::new(true,     Box::new(|x|    "aeiou"                        .chars().any(|y| y == x || y.to_ascii_uppercase() == x))),
+        Type::new(true,     Box::new(|x|    "bcdfghjklmnpqrstvwxyz"        .chars().any(|y| y == x || y.to_ascii_uppercase() == x))),
+        Type::new(false,    Box::new(|x| !  "abcdefghijklmnopqrstuvwxyz"   .chars().any(|y| y == x || y.to_ascii_uppercase() == x))),
     );  
 
     let mut types_strings_with_holes: Vec< Vec<Option<char>> > = vec!();
@@ -116,7 +116,7 @@ fn main() {
             .collect::<Vec<_>>()[0].unwrap()
     }).collect::<String>();
 
-    new_string = new_string.chars().enumerate().map(|(i, x)| if capitalization_map[i] { x.to_uppercase().next().unwrap() } else { x.to_lowercase().next().unwrap() } ).collect();
+    new_string = new_string.chars().enumerate().map(|(i, x)| if capitalization_map[i] { x.to_ascii_uppercase() } else { x.to_ascii_lowercase() } ).collect();
 
 
     if args.verbose {
