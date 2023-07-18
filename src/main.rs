@@ -13,17 +13,6 @@ struct Args {
     verbose: bool,
 }
 
-struct Type {
-    filter_closure: Box<dyn Fn(char) -> bool>,
-    rotate: bool,
-}
-
-impl Type {
-    fn new(rotate: bool, filter_closure: Box<dyn Fn(<std::str::Chars as Iterator>::Item) -> bool>) -> Self {
-        return Self { filter_closure, rotate }
-    }
-}
-
 fn main() {
     let args = Args::parse();
 
@@ -31,101 +20,58 @@ fn main() {
 
     let string = args.string;
 
-    let types = vec!(
-        //Type::new(Box::new(|x: char| x.is_romance_vowel())),
-        //Type::new(Box::new(|x: char| x.is_alphabetic() && !x.is_romance_vowel())),
-        //Type::new(Box::new(|x: char| !x.is_alphabetic())),
-        Type::new(true,     Box::new(|x|    "aeiou"                        .chars().any(|y| y == x || y.to_ascii_uppercase() == x))),
-        Type::new(true,     Box::new(|x|    "bcdfghjklmnpqrstvwxyz"        .chars().any(|y| y == x || y.to_ascii_uppercase() == x))),
-        Type::new(false,    Box::new(|x| !  "abcdefghijklmnopqrstuvwxyz"   .chars().any(|y| y == x || y.to_ascii_uppercase() == x))),
-    );  
-
-    let mut types_strings_with_holes: Vec< Vec<Option<char>> > = vec!();
-
+    let filters = vec![
+        (|x| {
+            "aeiou"
+                .chars()
+                .any(|y| y == x || y.to_ascii_uppercase() == x)
+        }),
+        (|x| {
+            "bcdfghjklmnpqrstvwxyz"
+                .chars()
+                .any(|y| y == x || y.to_ascii_uppercase() == x)
+        }),
+    ];
 
     let capitalization_map: Vec<bool> = string.chars().map(|x| x.is_uppercase()).collect();
 
-    types
-        .iter()
-        .for_each(|t|
-                  types_strings_with_holes
-                  .push(string
-                        .chars()
-                        .map(|c| (t.filter_closure)(c).then_some(c))
-                        .collect()
-                       )
-                 );
+    let mut filter_strings: Vec<Vec<(usize, char)>> = vec![];
 
-    let old_string_with_holes = types_strings_with_holes.clone();
+    filters.iter().for_each(|f| {
+        let (indices, mut str): (Vec<usize>, Vec<char>) =
+            string.char_indices().filter(|x| (f)(x.1)).unzip();
 
-    types_strings_with_holes.iter_mut().zip(types).for_each(|str| {
-        if !str.1.rotate { return; }
-        let (indexes, mut tight_string): (Vec<usize>, Vec<Option<char>>) = str.0
-            .iter()
-            .enumerate()
-            .filter(|x| x.1.is_some())
-            .unzip();
+        let str_len = str.len(); // fuck_this
 
-        if tight_string.len() != 0 {
-            let turn_len = turn_count % tight_string.len();
-
+        if str_len != 0 {
             if args.count.is_positive() {
-                tight_string.rotate_right(turn_len);
+                str.rotate_right(turn_count % str_len);
             } else {
-                tight_string.rotate_left(turn_len);
+                str.rotate_left(turn_count % str_len);
             }
         }
 
-        indexes
-            .into_iter()
-            .zip(&tight_string)
-            .for_each(|(i, v)| str.0[i] = *v);
+        filter_strings.push(indices.into_iter().zip(str).collect());
     });
 
-    //let mut new_string = vec![None::<char>; string.len()];
-    //types_strings_with_holes.iter().for_each(|str| {
-    //    let mut str_iter = str.iter();
-    //
-    //    let new_string_2 = new_string.clone();
-    //
-    //    let mut new_string_iter = new_string_2.iter();
-    //
-    //    new_string_2.iter().enumerate().for_each(|ns| {
-    //        let index = ns.0;
-    //        let x = new_string_iter.next().unwrap();
-    //        let y = str_iter.next().unwrap();
-    //
-    //        new_string[index] = match (x, y) {
-    //            (Some(x),   Some(_y)) => Some(*x),
-    //            (Some(x),   None    ) => Some(*x),
-    //            (None,      Some(y) ) => Some(*y),
-    //            (None,      None    ) => None,
-    //        };
-    //    });
-    //});
+    let mut new_string = string.chars().collect::<Vec<char>>();
 
-    let mut types_iters: Vec<std::slice::Iter<Option<char>>> = types_strings_with_holes.iter().map(|x| x.iter()).collect();
-    let mut new_string = string.chars().map(|_| {
-        let mut types_next = vec!();
-        for iter in &mut types_iters {
-            types_next.push(iter.next().unwrap());
-        }
-        return types_next
-            .iter()
-            .filter(|x| x.is_some())
-            .collect::<Vec<_>>()[0].unwrap()
-    }).collect::<String>();
+    filter_strings
+        .iter()
+        .rev()
+        .for_each(|ts| ts.iter().for_each(|s| new_string[s.0] = s.1));
 
-    new_string = new_string.chars().enumerate().map(|(i, x)| if capitalization_map[i] { x.to_ascii_uppercase() } else { x.to_ascii_lowercase() } ).collect();
+    let new_string: String = new_string
+        .iter()
+        .enumerate()
+        .map(|(i, x)| {
+            if capitalization_map[i] {
+                x.to_ascii_uppercase()
+            } else {
+                x.to_ascii_lowercase()
+            }
+        })
+        .collect();
 
-
-    if args.verbose {
-        old_string_with_holes       .iter().for_each(|x| println!("{}", x.iter().map(|x| if x.unwrap_or('%') == ' ' { '_' } else { x.unwrap_or(' ') } ).collect::<String>()));
-        println!();
-        types_strings_with_holes    .iter().for_each(|x| println!("{}", x.iter().map(|x| if x.unwrap_or('%') == ' ' { '_' } else { x.unwrap_or(' ') } ).collect::<String>()));
-        println!();
-    }
-
-    //println!("{}", new_string.iter().map(|x| x.unwrap_or(' ')).collect::<String>());
     println!("{}", new_string);
 }
